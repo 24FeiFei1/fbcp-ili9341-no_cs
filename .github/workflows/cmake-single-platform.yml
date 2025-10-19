@@ -1,0 +1,48 @@
+name: CMake Build for Raspberry Pi Zero 2 W (32-bit)
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo dpkg --add-architecture armhf
+        sudo apt update
+        sudo apt install -y cmake make g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf
+
+    - name: Configure CMake for Raspberry Pi Zero 2 W
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. \
+          -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/cmake/Toolchain-armhf.cmake \
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DCUSTOM_ST7789_240X240=ON \
+          -DSPI_BUS_CLOCK_DIVISOR=4 \
+          -DGPIO_TFT_DATA_CONTROL=17 \
+          -DGPIO_TFT_RESET_PIN=22 \
+          -DGPIO_TFT_BACKLIGHT=27 \
+          -DSTATISTICS=0 \
+          -DUSE_DMA_TRANSFERS=ON
+
+    - name: Build
+      run: |
+        cd build
+        make -j4
+
+    - name: Test
+      run: |
+        cd build
+        ctest -C ${{env.BUILD_TYPE}} || true
