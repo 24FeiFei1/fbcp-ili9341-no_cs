@@ -1,0 +1,62 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches:
+      - main
+      - release/*
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest   # self-hosted Pi için: runs-on: self-hosted
+
+    steps:
+      # Repo'yu checkout et
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Gerekli paketleri yükle
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+
+      # Build klasörü oluştur
+      - name: Create build directory
+        run: mkdir -p build
+
+      # CMake ile yapılandır
+      - name: Configure
+        working-directory: build
+        run: |
+          cmake -DCUSTOM_ST7789_240X240=ON \
+                -DSPI_BUS_CLOCK_DIVISOR=4 \
+                -DGPIO_TFT_DATA_CONTROL=17 \
+                -DGPIO_TFT_RESET_PIN=22 \
+                -DGPIO_TFT_BACKLIGHT=27 \
+                -DSTATISTICS=0 \
+                -DUSE_DMA_TRANSFERS=ON ..
+
+      # Derleme
+      - name: Make
+        working-directory: build
+        run: make -j4
+
+      # Opsiyonel test (varsa)
+      - name: Make check
+        working-directory: build
+        run: make check || echo "No tests defined"
+
+      # Opsiyonel distcheck
+      - name: Make distcheck
+        working-directory: build
+        run: make distcheck || echo "No distcheck defined"
+
+      # Build artifacts
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: fbcp-ili9341-build
+          path: build/
