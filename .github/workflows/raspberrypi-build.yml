@@ -45,7 +45,7 @@ jobs:
 
       # Build sonucu artifact olarak kaydet
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: fbcp-ili9341-build
           path: build/
