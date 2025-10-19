@@ -1,51 +1,47 @@
-name: Build for Raspberry Pi Zero 2 W
+name: C/C++ CI
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ "master" ]
   pull_request:
+    branches: [ "master" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Repo'yu checkout et
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Gerekli paketleri yükle (CMake, make, GCC vs.)
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake build-essential gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+      - name: Set up QEMU and Docker for ARM emulation
+        uses: docker/setup-qemu-action@v3
 
-      # Build klasörü oluştur
-      - name: Create build directory
-        run: mkdir -p build
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      # CMake komutunu çalıştır
-      - name: Run CMake
-        working-directory: build
-        run: |
-          cmake -DCUSTOM_ST7789_240X240=ON \
-                -DSPI_BUS_CLOCK_DIVISOR=4 \
-                -DGPIO_TFT_DATA_CONTROL=17 \
-                -DGPIO_TFT_RESET_PIN=22 \
-                -DGPIO_TFT_BACKLIGHT=27 \
-                -DSTATISTICS=0 \
-                -DUSE_DMA_TRANSFERS=ON ..
+      - name: Run build inside Debian ARM32 container
+        uses: addnab/docker-run-action@v3
+        with:
+          image: arm32v7/debian:bullseye
+          options: --platform linux/arm/v7
+          run: |
+            apt-get update
+            apt-get install -y cmake build-essential git
+            mkdir -p build
+            cd build
+            cmake -DCUSTOM_ST7789_240X240=ON \
+                  -DSPI_BUS_CLOCK_DIVISOR=4 \
+                  -DGPIO_TFT_DATA_CONTROL=17 \
+                  -DGPIO_TFT_RESET_PIN=22 \
+                  -DGPIO_TFT_BACKLIGHT=27 \
+                  -DSTATISTICS=0 \
+                  -DUSE_DMA_TRANSFERS=ON ..
+            make -j4
 
-      # Make ile derle
-      - name: Build
-        working-directory: build
-        run: make -j4
-
-      # Build sonucu artifact olarak kaydet
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: fbcp-ili9341-build
+          name: fbcp-ili9341-arm32-build
           path: build/
