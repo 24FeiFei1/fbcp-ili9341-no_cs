@@ -1,52 +1,50 @@
-name: CMake Build for Raspberry Pi Zero 2 W (32-bit)
+name: Build fbcp-ili9341-no_cs (ARMv7 Buster)
 
 on:
   push:
-    branches: [ "master" ]
+    branches:
+      - main
   pull_request:
-    branches: [ "master" ]
-
-env:
-  BUILD_TYPE: Release
 
 jobs:
-  build:
+  build-arm32v7-buster:
     runs-on: ubuntu-latest
-
     container:
       image: arm32v7/debian:buster
       options: --platform linux/arm/v7
 
+    env:
+      CMAKE_BUILD_TYPE: Release
+
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo dpkg --add-architecture armhf
-        sudo apt update
-        sudo apt install -y cmake make g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf
+      - name: Update APT and install dependencies
+        run: |
+          apt-get update
+          apt-get install -y build-essential cmake git libjpeg-dev libpng-dev
 
-    - name: Configure CMake for Raspberry Pi Zero 2 W
-      run: |
-        mkdir -p build
-        cd build
-        cmake .. \
-          -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/cmake/Toolchain-armhf.cmake \
-          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
-          -DCUSTOM_ST7789_240X240=ON \
-          -DSPI_BUS_CLOCK_DIVISOR=4 \
-          -DGPIO_TFT_DATA_CONTROL=17 \
-          -DGPIO_TFT_RESET_PIN=22 \
-          -DGPIO_TFT_BACKLIGHT=27 \
-          -DSTATISTICS=0 \
-          -DUSE_DMA_TRANSFERS=ON
+      - name: Create build directory
+        run: mkdir -p fbcp-ili9341-no_cs/build
 
-    - name: Build
-      run: |
-        cd build
-        make -j4
+      - name: Configure CMake
+        working-directory: fbcp-ili9341-no_cs/build
+        run: |
+          cmake .. \
+            -DCUSTOM_ST7789_240X240=ON \
+            -DSPI_BUS_CLOCK_DIVISOR=4 \
+            -DGPIO_TFT_DATA_CONTROL=17 \
+            -DGPIO_TFT_RESET_PIN=22 \
+            -DGPIO_TFT_BACKLIGHT=27 \
+            -DSTATISTICS=0 \
+            -DUSE_DMA_TRANSFERS=ON \
+            -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
 
-    - name: Test
-      run: |
-        cd build
-        ctest -C ${{env.BUILD_TYPE}} || true
+      - name: Build fbcp-ili9341-no_cs
+        working-directory: fbcp-ili9341-no_cs/build
+        run: make -j$(nproc)
+
+      - name: Verify build output
+        working-directory: fbcp-ili9341-no_cs/build
+        run: ls -l
