@@ -17,6 +17,11 @@ jobs:
       CMAKE_BUILD_TYPE: Release
 
     steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm/v7
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
