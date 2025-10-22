@@ -3,3 +3,42 @@ cmake -DCUSTOM_ST7789_240X240=ON -DSPI_BUS_CLOCK_DIVISOR=4 -DGPIO_TFT_DATA_CONTR
 cmake -DCUSTOM_ST7789_240X240=ON -DSPI_BUS_CLOCK_DIVISOR=6 -DGPIO_TFT_DATA_CONTROL=17 -DGPIO_TFT_RESET_PIN=22 -DGPIO_TFT_BACKLIGHT=27 -DSTATISTICS=1 -DUSE_DMA_TRANSFERS=ON -DDMA_TX_CHANNEL=2 -DDMA_RX_CHANNEL=3 ..
 
 sudo ~/fbcp-ili9341-no_cs/build/fbcp-ili9341
+
+
+----------auto start-----------------
+echo "[Unit]
+Description=fbcp-ili9341 Service (sudo)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/sudo /home/pi/fbcp-ili9341-no_cs/build/fbcp-ili9341
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+" | sudo tee /etc/systemd/system/fbcp.service > /dev/null && \
+echo "import RPi.GPIO as GPIO, os, time
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(21, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+while True:
+    GPIO.wait_for_edge(21, GPIO.FALLING)
+    os.system('sudo systemctl restart fbcp')
+    time.sleep(0.5)
+" | sudo tee /home/pi/restart_fbcp_button.py > /dev/null && \
+sudo chmod +x /home/pi/restart_fbcp_button.py && \
+echo "[Unit]
+Description=Restart fbcp on GPIO21 press
+After=multi-user.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/pi/restart_fbcp_button.py
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+" | sudo tee /etc/systemd/system/fbcp-button.service > /dev/null && \
+sudo systemctl daemon-reload && \
+sudo systemctl enable fbcp.service fbcp-button.service && \
+sudo systemctl start fbcp.service fbcp-button.service
